@@ -15,10 +15,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Select Xcode
-      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+    - name: List files
+      run: ls -la
 
-    - name: Build IPA
+    - name: Build iOS Project
       env:
         CODE_SIGNING_ALLOWED: NO
       run: |
@@ -26,15 +26,26 @@ jobs:
           -scheme DailyReminder \
           -configuration Debug \
           -destination 'generic/platform=iOS' \
+          -derivedDataPath build \
           CODE_SIGNING_ALLOWED=NO \
-          build
+          build 2>&1
+
+    - name: Verify Build
+      run: |
+        ls -la build/Build/Products/Debug-iphoneos/ || echo "Build directory not found, checking alternative paths..."
+        find build -name "*.app" -type d 2>/dev/null || true
 
     - name: Create IPA
       run: |
+        APP_PATH=$(find build -name "*.app" -type d | head -1)
+        if [ -z "$APP_PATH" ]; then
+          echo "No app found in build output"
+          exit 1
+        fi
         mkdir -p output
-        cp -r build/Debug-iphoneos/DailyReminder.app ./output/
+        cp -r "$APP_PATH" ./output/
         cd output
-        zip -r DailyReminder.ipa DailyReminder.app
+        zip -r DailyReminder.ipa *.app
         ls -la
 
     - name: Upload IPA
