@@ -15,9 +15,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: List files
-      run: ls -la
-
     - name: Build iOS Project
       env:
         CODE_SIGNING_ALLOWED: NO
@@ -28,28 +25,25 @@ jobs:
           -destination 'generic/platform=iOS' \
           -derivedDataPath build \
           CODE_SIGNING_ALLOWED=NO \
-          build 2>&1
-
-    - name: Verify Build
-      run: |
-        ls -la build/Build/Products/Debug-iphoneos/ || echo "Build directory not found, checking alternative paths..."
-        find build -name "*.app" -type d 2>/dev/null || true
+          build 2>&1 | tail -50
 
     - name: Create IPA
       run: |
-        APP_PATH=$(find build -name "*.app" -type d | head -1)
+        APP_PATH=$(find build -name "*.app" -type d 2>/dev/null | head -1)
+        echo "App path: $APP_PATH"
         if [ -z "$APP_PATH" ]; then
-          echo "No app found in build output"
+          echo "Build failed - no app found"
           exit 1
         fi
         mkdir -p output
         cp -r "$APP_PATH" ./output/
         cd output
-        zip -r DailyReminder.ipa *.app
+        zip -r DailyReminder.ipa DailyReminder.app
         ls -la
 
     - name: Upload IPA
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: DailyReminder-IPA
         path: output/DailyReminder.ipa
