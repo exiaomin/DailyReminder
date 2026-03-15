@@ -1,0 +1,44 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+    - name: Build IPA
+      env:
+        CODE_SIGNING_ALLOWED: NO
+      run: |
+        xcodebuild -project DailyReminder.xcodeproj \
+          -scheme DailyReminder \
+          -configuration Debug \
+          -destination 'generic/platform=iOS' \
+          CODE_SIGNING_ALLOWED=NO \
+          build
+
+    - name: Create IPA
+      run: |
+        mkdir -p output
+        cp -r build/Debug-iphoneos/DailyReminder.app ./output/
+        cd output
+        zip -r DailyReminder.ipa DailyReminder.app
+        ls -la
+
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: DailyReminder-IPA
+        path: output/DailyReminder.ipa
